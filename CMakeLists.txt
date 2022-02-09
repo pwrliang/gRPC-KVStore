@@ -92,3 +92,6 @@ target_link_libraries(kv_store ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES} ${ROCKSDB_L
         ${_REFLECTION}
         ${_GRPC_GRPCPP}
         ${_PROTOBUF_LIBPROTOBUF})
+if(NOT APPLE)
+    target_link_libraries(kv_store ibverbs)
+endif()

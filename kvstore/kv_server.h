@@ -72,9 +72,8 @@ namespace kvstore {
 
         ::grpc::Status
         Put(::grpc::ServerContext *context, const ::kvstore::PutReq *request, ::kvstore::PutResp *response) override {
-            auto &key = request->key();
-            auto &value = request->value();
-            auto s = db_->Put(rocksdb::WriteOptions(), key, value);
+            auto &kv = request->kv();
+            auto s = db_->Put(rocksdb::WriteOptions(), kv.key(), kv.value());
 
             return wrapStatus(s, response->mutable_status());
         }
@@ -85,6 +84,25 @@ namespace kvstore {
             auto s = db_->Delete(rocksdb::WriteOptions(), key);
 
             return wrapStatus(s, response->mutable_status());
+        }
+
+        ::grpc::Status GetBatch(::grpc::ServerContext *context, const ::kvstore::GetBatchReq *request,
+                                ::grpc::ServerWriter<::kvstore::GetBatchResp> *writer) override {
+            auto *it = db_->NewIterator(rocksdb::ReadOptions());
+            size_t batch_size = std::numeric_limits<size_t>::max();
+            if (request->has_limit()) {
+                batch_size = request->limit();
+            }
+
+            for (it->SeekToFirst(); it->Valid() && batch_size > 0; it->Next(), batch_size--) {
+                GetBatchResp resp;
+                resp.mutable_kv()->mutable_key()->assign(it->key().data(), it->key().size());
+                resp.mutable_kv()->mutable_value()->assign(it->value().data(), it->value().size());
+                writer->Write(resp);
+            }
+            CHECK(it->status().ok()) << it->status().ToString();
+            delete it;
+            return grpc::Status::OK;
         }
 
     private:

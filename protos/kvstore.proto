@@ -4,6 +4,7 @@ package kvstore;
 
 service KVStore {
   rpc Get(GetReq) returns (GetResp) {}
+  rpc GetBatch(GetBatchReq) returns (stream GetBatchResp) {}
   rpc Put(PutReq) returns (PutResp) {}
   rpc Delete(DeleteReq) returns (DeleteResp) {}
 }
@@ -19,6 +20,11 @@ message Status {
   bytes error_msg = 2;
 }
 
+message KV {
+  bytes key = 1;
+  bytes value = 2;
+}
+
 message GetReq {
   bytes key = 1;
 }
@@ -28,9 +34,17 @@ message GetResp {
   Status status = 2;
 }
 
+message GetBatchReq {
+  optional bytes start = 1;
+  optional uint32 limit = 2;
+}
+
+message GetBatchResp {
+  KV kv = 1;
+}
+
 message PutReq {
-  bytes key = 1;
-  bytes value = 2;
+  KV kv = 1;
 }
 
 message PutResp {

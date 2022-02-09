@@ -10,3 +10,4 @@ DEFINE_uint32(key_size, 128, "key size in bytes");
 DEFINE_uint32(val_size, 4096, "value size");
 DEFINE_uint32(batch_size, 100000, "Batch size");
 DEFINE_bool(variable, false, "Random value size");
+DEFINE_string(cmd, "put", "get/get_batch/put");

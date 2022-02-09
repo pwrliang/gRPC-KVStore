@@ -1,20 +1,28 @@
 cmake_minimum_required(VERSION 3.21)
 project(gRPC_KVStore)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 include(cmake/FindGFlags.cmake)
+if(${GFLAGS_FOUND})
+    include_directories(${GFLAGS_INCLUDE_DIRS})
+else()
+    message(FATAL_ERROR "no gflags")
+endif()
+
 include(cmake/FindGlog.cmake)
+if(${GLOG_FOUND})
+    include_directories(${GLOG_INCLUDE_DIRS})
+else()
+    message(FATAL_ERROR "no glogs")
+endif()
+
 include(cmake/FindRocksDB.cmake)
-
-include_directories(${GFLAGS_INCLUDE_DIRS})
-include_directories(${GLOG_INCLUDE_DIRS})
-include_directories(${ROCKSDB_INCLUDE_DIRS})
-
-
-
-
-
+if(${ROCKSDB_FOUND})
+    include_directories(${ROCKSDB_INCLUDE_DIRS})
+else()
+    message(FATAL_ERROR "no rocksdb")
+endif()
 # Find Protobuf installation
 # Looks for protobuf-config.cmake file installed by Protobuf's cmake installation.
 set(protobuf_MODULE_COMPATIBLE TRUE)

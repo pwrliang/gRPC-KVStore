@@ -13,25 +13,68 @@
 
 namespace kvstore {
     /*
-    template<typename Request, typename Response>
     class CallData {
     public:
-        CallData(KVStore::AsyncService *service, grpc::ServerCompletionQueue *cq)
-                : service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
+        CallData() = default;
+
+        virtual ~CallData() = default;
+
+        virtual void Proceed() = 0;
+    };
+
+    template<typename Request, typename Response>
+    class RocksdbCall final : public CallData {
+    public:
+        RocksdbCall(rocksdb::DB *db,
+                    KVStore::AsyncService *service, grpc::ServerCompletionQueue *cq)
+                : db_(db), service_(service), cq_(cq), responder_(&ctx_), status_(CREATE) {
             Proceed();
         }
 
-        void Proceed() {
+        void Proceed() override {
             if (status_ == CREATE) {
                 status_ = PROCESS;
-                service_->RequestGet(&ctx_, &request_, &responder_, cq_, cq_,
-                                     this);
+                if (typeid(Request) == typeid(GetReq)) {
+                    service_->RequestGet(&ctx_, &request_, &responder_, cq_, cq_,
+                                         this);
+                } else if (typeid(Request) == typeid(GetBatchReq)) {
+                    service_->RequestGetBatch(&ctx_, &request_, &responder_, cq_, cq_,
+                                              this);
+                } else if (typeid(Request) == typeid(PutReq)) {
+                    service_->RequestPut(&ctx_, &request_, &responder_, cq_, cq_,
+                                         this);
+                }
             } else if (status_ == PROCESS) {
-                new CallData(service_, cq_);
-                std::string prefix("Hello ");
-                reply_.set_message(prefix + request_.name());
+                new RocksdbCall<Request, Response>(db_, service_, cq_);
+                grpc::Status status;
+                if (typeid(Request) == typeid(GetReq)) {
+                    auto &key = request_->key();
+                    std::string *value = reply_->mutable_value();
+                    auto s = db_->Get(rocksdb::ReadOptions(), key, value);
+
+                    status = wrapStatus(s, reply_->mutable_status());
+                } else if (typeid(Request) == typeid(GetBatchReq)) {
+                    // FIXME
+                    auto *it = db_->NewIterator(rocksdb::ReadOptions());
+                    size_t batch_size = std::numeric_limits<size_t>::max();
+                    if (request_->has_limit()) {
+                        batch_size = request_->limit();
+                    }
+
+                    for (it->SeekToFirst(); it->Valid() && batch_size > 0; it->Next(), batch_size--) {
+                        GetBatchResp resp;
+                        resp.mutable_kv()->mutable_key()->assign(it->key().data(), it->key().size());
+                        resp.mutable_kv()->mutable_value()->assign(it->value().data(), it->value().size());
+                        responder_->Write(resp);
+                    }
+                    CHECK(it->status().ok()) << it->status().ToString();
+                    delete it;
+                    return grpc::Status::OK;
+                }
+                else if (typeid(Request) == typeid(PutReq)) {}
+
                 status_ = FINISH;
-                responder_.Finish(reply_, grpc::Status::OK, this);
+                responder_.Finish(reply_, status, this);
             } else {
                 GPR_ASSERT(status_ == FINISH);
                 delete this;
@@ -39,12 +82,14 @@ namespace kvstore {
         }
 
     private:
+        rocksdb::DB *db_;
         KVStore::AsyncService *service_;
         grpc::ServerCompletionQueue *cq_;
         grpc::ServerContext ctx_;
 
         Request request_;
         Response reply_;
+
 
         grpc::ServerAsyncResponseWriter<Response> responder_;
 
@@ -53,7 +98,7 @@ namespace kvstore {
         };
         CallStatus status_;
     };
-     */
+    */
 
     class KVStoreServiceImpl final : public KVStore::Service {
     public:
@@ -172,7 +217,20 @@ namespace kvstore {
             CHECK(s.ok()) << s.ToString();
             delete db;
         }
-
+        /*
+        void HandleRpcs() {
+            new CallData<GetReq, GetResp>(db_, &async_service_, cq_.get());
+            new CallData<GetBatchReq, GetBatchResp>(db_, &async_service_, cq_.get());
+            new CallData<PutReq, PutResp>(db_, &async_service_, cq_.get());
+            void *tag;
+            bool ok;
+            while (true) {
+                GPR_ASSERT(cq_->Next(&tag, &ok));
+                GPR_ASSERT(ok);
+                static_cast<CallData>
+            }
+        }
+         */
     };
 }
 #endif //GRPC_KVSTORE_KV_SERVER_H

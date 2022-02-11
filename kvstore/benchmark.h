@@ -38,7 +38,7 @@ namespace kvstore {
         size_t size_in_byte = 0;
 
         sw.start();
-        Status status = kv_cli->GetBatch(kvs,  batch_size);
+        Status status = kv_cli->GetBatch(kvs, batch_size);
         sw.stop();
 
         if (status.error_code() != ErrorCode::OK) {
@@ -49,8 +49,8 @@ namespace kvstore {
             size_in_byte += kv.key().size() + kv.value().size();
         }
 
-        LOG(INFO) << "Batch size: " << kvs.size()
-                  << " Total data size: " << (float) size_in_byte / 1024.0 / 1024.0 << " MB";
+        LOG(INFO) << kvs.size() << " kvs are found, total data size: " << (float) size_in_byte / 1024.0 / 1024.0
+                  << " MB";
         LOG(INFO) << "Time: " << sw.ms() << " ms, avg: " << kvs.size() / (sw.ms() / 1000) << " kv/s";
     }
 
@@ -78,8 +78,8 @@ namespace kvstore {
             size_in_byte += kv.key().size() + kv.value().size();
         }
         sw.stop();
-        LOG(INFO) << "Batch size: " << kvs.size()
-                  << " Total data size: " << (float) size_in_byte / 1024.0 / 1024.0 << " MB";
+        LOG(INFO) << kvs.size() << " kvs are found, total data size: " << (float) size_in_byte / 1024.0 / 1024.0
+                  << " MB";
         LOG(INFO) << "Time: " << sw.ms() << " ms, avg: " << kvs.size() / (sw.ms() / 1000) << " kv/s";
     }
 
@@ -110,9 +110,35 @@ namespace kvstore {
         }
         sw.stop();
 
-        LOG(INFO) << "Key size: " << key_size << " Max Value size: " << max_val_size << " Batch size: " << batch_size
+        LOG(INFO) << batch_size << " kvs are inserted, max Value size: " << max_val_size << " Batch size: " << batch_size
                   << " Total data size: " << (float) size_in_byte / 1024.0 / 1024.0 << " MB";
         LOG(INFO) << "Time: " << sw.ms() << " ms, avg: " << batch_size / (sw.ms() / 1000) << " kv/s";
+    }
+
+    void TestDelete(const std::shared_ptr<KVClient> &kv_cli,
+                    size_t batch_size) {
+        Stopwatch sw;
+        std::vector<KV> kvs;
+        Status status = kv_cli->GetBatch(kvs, batch_size);
+        size_t size_in_byte = 0;
+
+        if (status.error_code() != ErrorCode::OK) {
+            LOG(FATAL) << "GetBatch Error: " << status.error_code() << " msg: " << status.error_msg();
+        }
+
+        sw.start();
+        for (auto &kv: kvs) {
+            status = kv_cli->Delete(kv.key());
+            if (status.error_code() != ErrorCode::OK) {
+                LOG(FATAL) << "Failed to get key " << kv.key() << " ErrorCode: " << status.error_code() << " msg: " <<
+                           status.error_msg();
+            }
+            size_in_byte += kv.key().size() + kv.value().size();
+        }
+        sw.stop();
+        LOG(INFO) << kvs.size() << " kvs are deleted, total data size: " << (float) size_in_byte / 1024.0 / 1024.0
+                  << " MB";
+        LOG(INFO) << "Time: " << sw.ms() << " ms, avg: " << kvs.size() / (sw.ms() / 1000) << " kv/s";
     }
 }
 

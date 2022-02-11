@@ -28,6 +28,7 @@ int main(int argc, char *argv[]) {
         auto cmd = FLAGS_cmd;
         auto client = std::make_shared<kvstore::KVClient>(addr);
         auto batch_size = FLAGS_batch_size;
+        CHECK_NE(FLAGS_addr, "0.0.0.0") << "give me a valid addr?";
 
         for (int i = 1; i <= FLAGS_repeat; i++) {
             LOG(INFO) << "Repeat: " << i;
@@ -38,6 +39,8 @@ int main(int argc, char *argv[]) {
                 kvstore::TestGetBatch(client, batch_size);
             } else if (cmd == "get") {
                 kvstore::TestGet(client, batch_size);
+            } else if (cmd == "delete") {
+                kvstore::TestDelete(client, batch_size);
             } else {
                 LOG(FATAL) << "Bad command: " << cmd;
             }

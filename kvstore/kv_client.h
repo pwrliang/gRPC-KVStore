@@ -51,6 +51,23 @@ namespace kvstore {
             return resp.status();
         }
 
+        Status GetBigKV(const BigGetReq& req, std::string &value) {
+            BigGetResp resp;
+            grpc::ClientContext cli_ctx;
+
+            auto grpc_status = stub_->GetBigKV(&cli_ctx, req, &resp);
+
+            if (grpc_status.ok()) {
+                if (resp.status().error_code() == ErrorCode::OK) {
+                    value = resp.value();
+                }
+            } else {
+                resp.mutable_status()->set_error_code(ErrorCode::CLIENT_ERROR);
+                resp.mutable_status()->set_error_msg(grpc_status.error_message());
+            }
+            return resp.status();
+        }
+
         Status Put(const std::string &key, const std::string &value) {
             PutReq req;
             PutResp resp;

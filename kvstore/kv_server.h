@@ -150,6 +150,14 @@ namespace kvstore {
             return grpc::Status::OK;
         }
 
+        ::grpc::Status
+        GetBigKV(::grpc::ServerContext *context, const ::kvstore::BigGetReq *request,
+                 ::kvstore::BigGetResp *response) override {
+            auto &key = request->key();
+            response->mutable_value()->resize(request->val_size());
+            return wrapStatus(rocksdb::Status::OK(), response->mutable_status());
+        }
+
     private:
         rocksdb::DB *db_;
 

@@ -29,7 +29,9 @@ int main(int argc, char *argv[]) {
         auto client = std::make_shared<kvstore::KVClient>(addr);
         auto batch_size = FLAGS_batch_size;
         CHECK_NE(FLAGS_addr, "0.0.0.0") << "give me a valid addr?";
-
+        if (FLAGS_warmup) {
+            kvstore::Warmup(client, FLAGS_key_size, FLAGS_val_size, FLAGS_variable);
+        }
         for (int i = 1; i <= FLAGS_repeat; i++) {
             LOG(INFO) << "Repeat: " << i;
 
@@ -41,6 +43,8 @@ int main(int argc, char *argv[]) {
                 kvstore::TestGet(client, batch_size);
             } else if (cmd == "delete") {
                 kvstore::TestDelete(client, batch_size);
+            } else if (cmd == "get_big") {
+                kvstore::TestBigKV(client, FLAGS_big_kv_in_kb * 1024, FLAGS_big_k, FLAGS_big_v);
             } else {
                 LOG(FATAL) << "Bad command: " << cmd;
             }

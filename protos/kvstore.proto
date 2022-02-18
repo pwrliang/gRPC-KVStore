@@ -7,6 +7,7 @@ service KVStore {
   rpc GetBatch(GetBatchReq) returns (stream GetBatchResp) {}
   rpc Put(PutReq) returns (PutResp) {}
   rpc Delete(DeleteReq) returns (DeleteResp) {}
+  rpc GetBigKV(BigGetReq) returns (BigGetResp) {}
 }
 
 enum ErrorCode {
@@ -56,5 +57,15 @@ message DeleteReq {
 }
 
 message DeleteResp {
+  Status status = 2;
+}
+
+message BigGetReq {
+  bytes key = 1;
+  uint32 val_size = 2;
+}
+
+message BigGetResp {
+  bytes value = 1;
   Status status = 2;
 }

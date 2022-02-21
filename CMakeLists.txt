@@ -4,25 +4,25 @@ project(gRPC_KVStore)
 set(CMAKE_CXX_STANDARD 17)
 
 include(cmake/FindGFlags.cmake)
-if(${GFLAGS_FOUND})
+if (${GFLAGS_FOUND})
     include_directories(${GFLAGS_INCLUDE_DIRS})
-else()
+else ()
     message(FATAL_ERROR "no gflags")
-endif()
+endif ()
 
 include(cmake/FindGlog.cmake)
-if(${GLOG_FOUND})
+if (${GLOG_FOUND})
     include_directories(${GLOG_INCLUDE_DIRS})
-else()
+else ()
     message(FATAL_ERROR "no glogs")
-endif()
+endif ()
 
 include(cmake/FindRocksDB.cmake)
-if(${ROCKSDB_FOUND})
+if (${ROCKSDB_FOUND})
     include_directories(${ROCKSDB_INCLUDE_DIRS})
-else()
+else ()
     message(FATAL_ERROR "no rocksdb")
-endif()
+endif ()
 # Find Protobuf installation
 # Looks for protobuf-config.cmake file installed by Protobuf's cmake installation.
 set(protobuf_MODULE_COMPATIBLE TRUE)
@@ -31,11 +31,11 @@ message(STATUS "Using protobuf ${Protobuf_VERSION}")
 
 set(_PROTOBUF_LIBPROTOBUF protobuf::libprotobuf)
 set(_REFLECTION gRPC::grpc++_reflection)
-if(CMAKE_CROSSCOMPILING)
+if (CMAKE_CROSSCOMPILING)
     find_program(_PROTOBUF_PROTOC protoc)
-else()
+else ()
     set(_PROTOBUF_PROTOC $<TARGET_FILE:protobuf::protoc>)
-endif()
+endif ()
 
 # Find gRPC installation
 # Looks for gRPCConfig.cmake file installed by gRPC's cmake installation.
@@ -43,11 +43,19 @@ find_package(gRPC CONFIG REQUIRED)
 message(STATUS "Using gRPC ${gRPC_VERSION}")
 
 set(_GRPC_GRPCPP gRPC::grpc++)
-if(CMAKE_CROSSCOMPILING)
+if (CMAKE_CROSSCOMPILING)
     find_program(_GRPC_CPP_PLUGIN_EXECUTABLE grpc_cpp_plugin)
-else()
+else ()
     set(_GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
-endif()
+endif ()
+
+find_package(JNI)
+
+if (JNI_FOUND)
+    message(STATUS "JNI_INCLUDE_DIRS=${JNI_INCLUDE_DIRS}")
+    message(STATUS "JNI_LIBRARIES=${JNI_LIBRARIES}")
+    include_directories(${JNI_INCLUDE_DIRS})
+endif ()
 
 
 # Proto file
@@ -73,7 +81,7 @@ add_custom_command(
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 # kv_grpc_proto
-add_library(kv_grpc_proto
+add_library(kv_grpc_proto SHARED
         ${kv_grpc_srcs}
         ${kv_grpc_hdrs}
         ${kv_proto_srcs}
@@ -92,6 +100,16 @@ target_link_libraries(kv_store ${GFLAGS_LIBRARIES} ${GLOG_LIBRARIES} ${ROCKSDB_L
         ${_REFLECTION}
         ${_GRPC_GRPCPP}
         ${_PROTOBUF_LIBPROTOBUF})
-if(NOT APPLE)
+if (NOT APPLE)
     target_link_libraries(kv_store ibverbs)
+endif ()
+
+if(JNI_FOUND)
+    add_library(grpcrocksdbjni SHARED jni/grpcrocksdbjni.cc)
+    target_include_directories(grpcrocksdbjni PRIVATE kvstore jni)
+    target_link_libraries(grpcrocksdbjni ${GLOG_LIBRARIES}
+            kv_grpc_proto
+            ${_REFLECTION}
+            ${_GRPC_GRPCPP}
+            ${_PROTOBUF_LIBPROTOBUF})
 endif()

@@ -30,8 +30,10 @@ int main(int argc, char *argv[]) {
         auto batch_size = FLAGS_batch_size;
         CHECK_NE(FLAGS_addr, "0.0.0.0") << "give me a valid addr?";
         if (FLAGS_warmup) {
+            LOG(INFO) << "Warming up";
             kvstore::Warmup(client, FLAGS_key_size, FLAGS_val_size, FLAGS_variable);
         }
+
         for (int i = 1; i <= FLAGS_repeat; i++) {
             LOG(INFO) << "Repeat: " << i;
 

@@ -28,6 +28,7 @@ message KV {
 
 message GetReq {
   bytes key = 1;
+  uint32 val_size = 2; // for dry-run
 }
 
 message GetResp {
@@ -37,7 +38,10 @@ message GetResp {
 
 message GetBatchReq {
   optional bytes start = 1;
-  optional uint32 limit = 2;
+  uint32 limit = 2;
+  uint32 key_size = 3; // for dry-run
+  uint32 val_size = 4;
+  bool variable = 5;
 }
 
 message GetBatchResp {

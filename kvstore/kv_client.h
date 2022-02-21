@@ -3,6 +3,7 @@
 #ifndef GRPC_KVSTORE_KV_CLIENT_H
 #define GRPC_KVSTORE_KV_CLIENT_H
 
+#include <glog/logging.h>
 #include <grpcpp/grpcpp.h>
 #include "kvstore.grpc.pb.h"
 
@@ -15,11 +16,18 @@ namespace kvstore {
             LOG(INFO) << "Client is trying to connect to " << addr;
         }
 
-        Status GetBatch(std::vector<KV> &kvs, size_t batch_size = std::numeric_limits<size_t>::max()) {
+        Status GetBatch(const std::string &start, std::vector<KV> &kvs,
+                        size_t batch_size = std::numeric_limits<size_t>::max()) {
             GetBatchReq req;
             grpc::ClientContext cli_ctx;
 
+            if (!start.empty()) {
+                req.set_start(start);
+            }
             req.set_limit(batch_size);
+//            req.set_key_size(FLAGS_key_size);
+//            req.set_val_size(FLAGS_val_size);
+//            req.set_variable(FLAGS_variable);
             auto reader = stub_->GetBatch(&cli_ctx, req);
             GetBatchResp resp;
             Status status;
@@ -51,7 +59,27 @@ namespace kvstore {
             return resp.status();
         }
 
-        Status GetBigKV(const BigGetReq& req, std::string &value) {
+        Status Get(const std::string &key, std::string &value, size_t val_size) {
+            GetReq req;
+            GetResp resp;
+            grpc::ClientContext cli_ctx;
+
+            req.set_key(key);
+            req.set_val_size(val_size);
+            auto grpc_status = stub_->Get(&cli_ctx, req, &resp);
+
+            if (grpc_status.ok()) {
+                if (resp.status().error_code() == ErrorCode::OK) {
+                    value = resp.value();
+                }
+            } else {
+                resp.mutable_status()->set_error_code(ErrorCode::CLIENT_ERROR);
+                resp.mutable_status()->set_error_msg(grpc_status.error_message());
+            }
+            return resp.status();
+        }
+
+        Status GetBigKV(const BigGetReq &req, std::string &value) {
             BigGetResp resp;
             grpc::ClientContext cli_ctx;
 

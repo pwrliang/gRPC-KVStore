@@ -5,6 +5,15 @@
 #include "kv_client.h"
 #include "benchmark.h"
 
+static std::unique_ptr<kvstore::KVServer> server;
+
+void signalHandler(int signum) {
+    if (server != nullptr) {
+        LOG(INFO) << "Closing server";
+        server->Stop();
+    }
+}
+
 int main(int argc, char *argv[]) {
     FLAGS_stderrthreshold = 0;
 
@@ -22,7 +31,8 @@ int main(int argc, char *argv[]) {
 
     auto addr = FLAGS_addr + ":" + std::to_string(FLAGS_port);
     if (FLAGS_server) {
-        auto server = std::make_unique<kvstore::KVServer>(FLAGS_db_file, addr);
+        server = std::make_unique<kvstore::KVServer>(FLAGS_db_file, addr);
+        signal(SIGTERM, signalHandler);
         server->Start();
     } else {
         auto cmd = FLAGS_cmd;

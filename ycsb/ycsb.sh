@@ -28,6 +28,7 @@ for workload in ${WORKLOADS}; do
   mpirun -host "$SERVER" "$KVSTORE_HOME"/kv_store -server -db_file="$db_file" > /dev/null 2>&1 &
   if [[ $cmd == "load" ]]; then
     # remove database
+    echo "Remove $db_file on $SERVER"
     mpirun -host "$SERVER" rm -rf "$db_file"
     echo "Loading $workload"
     # Load data

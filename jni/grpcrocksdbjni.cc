@@ -45,15 +45,6 @@ jobject new_array_list(JNIEnv *env, jsize size) {
 }
 
 
-JNIEXPORT void JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_init_1env
-        (JNIEnv *j_env, jclass j_cls, jstring j_name) {
-    FLAGS_stderrthreshold = 0;
-
-    std::string name = jstring2string(j_env, j_name);
-    google::InitGoogleLogging(name.c_str());
-    google::InstallFailureSignalHandler();
-}
-
 JNIEXPORT jlong JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_connect
         (JNIEnv *j_env, jobject j_obj, jstring j_addr) {
     auto addr = jstring2string(j_env, j_addr);
@@ -71,14 +62,14 @@ JNIEXPORT jbyteArray JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_ge
     return nullptr;
 }
 
-JNIEXPORT int JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_put
+JNIEXPORT jint JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_put
         (JNIEnv *j_env, jobject j_obj, jlong j_handle, jbyteArray j_key, jbyteArray j_value) {
     auto *cli = reinterpret_cast<kvstore::KVClient *>(j_handle);
     auto err = cli->Put(to_string(j_env, j_key), to_string(j_env, j_value)).error_code();
     return err == kvstore::ErrorCode::OK ? 0 : err;
 }
 
-JNIEXPORT int JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_delete
+JNIEXPORT jint JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_delete
         (JNIEnv *j_env, jobject j_obj, jlong j_handle, jbyteArray j_key) {
     auto *cli = reinterpret_cast<kvstore::KVClient *>(j_handle);
     auto err = cli->Delete(to_string(j_env, j_key)).error_code();
@@ -93,12 +84,12 @@ JNIEXPORT jobject JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_scan
     cli->GetBatch(to_string(j_env, j_key), kvs, j_limit);
 
     jclass clazz = j_env->FindClass("site/ycsb/db/grpc/rocksdb/GRPCRocksDBClient$KVPairs");
-    CHECK(clazz != nullptr);
+    assert(clazz != nullptr);
     jmethodID constructor = j_env->GetMethodID(clazz, "<init>", "()V");
-    CHECK(constructor != nullptr);
+    assert(constructor != nullptr);
     jfieldID j_keys_id = j_env->GetFieldID(clazz, "keys", "Ljava/util/List;");
     jfieldID j_vals_id = j_env->GetFieldID(clazz, "values", "Ljava/util/List;");
-    CHECK(j_keys_id != nullptr && j_vals_id != nullptr);
+    assert(j_keys_id != nullptr && j_vals_id != nullptr);
 
     auto j_keys = new_array_list(j_env, kvs.size());
     auto j_vals = new_array_list(j_env, kvs.size());

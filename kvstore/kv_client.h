@@ -101,6 +101,8 @@ namespace kvstore {
             PutResp resp;
             grpc::ClientContext cli_ctx;
 
+            CHECK(key.size() <= 4 * 1024 * 1024);
+            CHECK(value.size() <= 4 * 1024 * 1024);
             *req.mutable_kv()->mutable_key() = key;
             *req.mutable_kv()->mutable_value() = value;
 

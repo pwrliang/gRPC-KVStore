@@ -189,6 +189,8 @@ namespace kvstore {
         BigGetReq kv;
         std::string val;
 
+        size_in_byte = random(1, size_in_byte);
+
         if (big_req) {
             kv.mutable_key()->resize(size_in_byte);
         } else {

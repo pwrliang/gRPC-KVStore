@@ -8,3 +8,5 @@
 
 
 `mvn -pl site.ycsb:grpcrocksdb-binding -am clean package`
+
+`KVSTORE_HOME=/home/geng.161/Projects/gRPC-KVStore/build_original WORKLOADS="workloada workloadb workloadc workloadd workloade workloadf" ./ycsb/ycsb.sh run ycsb/core.dat`

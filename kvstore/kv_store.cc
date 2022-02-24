@@ -1,4 +1,6 @@
+#include <thread>
 #include "kv_server.h"
+#include <csignal>
 #include <gflags/gflags.h>
 #include <gflags/gflags_declare.h>
 #include <glog/logging.h>
@@ -8,10 +10,13 @@
 static std::unique_ptr<kvstore::KVServer> server;
 
 void signalHandler(int signum) {
-    if (server != nullptr) {
-        LOG(INFO) << "Closing server";
-        server->Stop();
-    }
+    std::thread th([]() {
+        if (server != nullptr) {
+            LOG(INFO) << "Closing server";
+            server->Stop();
+        }
+    });
+    th.join();
 }
 
 int main(int argc, char *argv[]) {

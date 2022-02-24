@@ -57,7 +57,6 @@ if (JNI_FOUND)
     include_directories(${JNI_INCLUDE_DIRS})
 endif ()
 
-
 # Proto file
 get_filename_component(kv_proto "protos/kvstore.proto" ABSOLUTE)
 get_filename_component(kv_proto_path "${kv_proto}" PATH)

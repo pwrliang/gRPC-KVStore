@@ -18,7 +18,7 @@ enum ErrorCode {
 
 message Status {
   ErrorCode error_code = 1;
-  bytes error_msg = 2;
+  optional bytes error_msg = 2;
 }
 
 message KV {
@@ -28,7 +28,6 @@ message KV {
 
 message GetReq {
   bytes key = 1;
-  uint32 val_size = 2; // for dry-run
 }
 
 message GetResp {
@@ -38,10 +37,7 @@ message GetResp {
 
 message GetBatchReq {
   optional bytes start = 1;
-  uint32 limit = 2;
-  uint32 key_size = 3; // for dry-run
-  uint32 val_size = 4;
-  bool variable = 5;
+  optional uint32 limit = 2;
 }
 
 message GetBatchResp {

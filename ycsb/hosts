@@ -1,2 +1,2 @@
-localhost
-localhost slots=2
+gpu19
+gpu20 slots=1

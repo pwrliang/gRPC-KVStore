@@ -21,13 +21,11 @@ namespace kvstore {
             GetBatchReq req;
             grpc::ClientContext cli_ctx;
 
+            cli_ctx.set_wait_for_ready(true);
             if (!start.empty()) {
                 req.set_start(start);
             }
             req.set_limit(batch_size);
-//            req.set_key_size(FLAGS_key_size);
-//            req.set_val_size(FLAGS_val_size);
-//            req.set_variable(FLAGS_variable);
             auto reader = stub_->GetBatch(&cli_ctx, req);
             GetBatchResp resp;
             Status status;
@@ -45,27 +43,8 @@ namespace kvstore {
             GetResp resp;
             grpc::ClientContext cli_ctx;
 
+            cli_ctx.set_wait_for_ready(true);
             req.set_key(key);
-            auto grpc_status = stub_->Get(&cli_ctx, req, &resp);
-
-            if (grpc_status.ok()) {
-                if (resp.status().error_code() == ErrorCode::OK) {
-                    value = resp.value();
-                }
-            } else {
-                resp.mutable_status()->set_error_code(ErrorCode::CLIENT_ERROR);
-                resp.mutable_status()->set_error_msg(grpc_status.error_message());
-            }
-            return resp.status();
-        }
-
-        Status Get(const std::string &key, std::string &value, size_t val_size) {
-            GetReq req;
-            GetResp resp;
-            grpc::ClientContext cli_ctx;
-
-            req.set_key(key);
-            req.set_val_size(val_size);
             auto grpc_status = stub_->Get(&cli_ctx, req, &resp);
 
             if (grpc_status.ok()) {
@@ -83,6 +62,7 @@ namespace kvstore {
             BigGetResp resp;
             grpc::ClientContext cli_ctx;
 
+            cli_ctx.set_wait_for_ready(true);
             auto grpc_status = stub_->GetBigKV(&cli_ctx, req, &resp);
 
             if (grpc_status.ok()) {

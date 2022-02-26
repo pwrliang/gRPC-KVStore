@@ -111,4 +111,7 @@ if(JNI_FOUND)
             ${_REFLECTION}
             ${_GRPC_GRPCPP}
             ${_PROTOBUF_LIBPROTOBUF})
+    if (NOT APPLE)
+        target_link_libraries(grpcrocksdbjni ibverbs)
+    endif ()
 endif()

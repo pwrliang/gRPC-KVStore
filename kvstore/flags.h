@@ -17,5 +17,4 @@ DECLARE_int32(big_kv_in_kb);
 DECLARE_bool(big_k);
 DECLARE_bool(big_v);
 DECLARE_bool(warmup);
-DECLARE_bool(dry_run);
 #endif //GRPC_KVSTORE_FLAGS_H

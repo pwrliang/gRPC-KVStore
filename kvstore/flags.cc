@@ -15,4 +15,3 @@ DEFINE_int32(big_kv_in_kb, 4, "kv size in kb");
 DEFINE_bool(big_k, true, "");
 DEFINE_bool(big_v, false, "");
 DEFINE_bool(warmup, true, "");
-DEFINE_bool(dry_run, false, "");

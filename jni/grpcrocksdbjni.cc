@@ -48,16 +48,31 @@ jobject new_array_list(JNIEnv *env, jsize size) {
 JNIEXPORT jlong JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_connect
         (JNIEnv *j_env, jobject j_obj, jstring j_addr) {
     auto addr = jstring2string(j_env, j_addr);
-    return reinterpret_cast<jlong>(new kvstore::KVClient(addr));
+    kvstore::BigGetReq kv;
+    std::string val;
+    auto kv_cli = new kvstore::KVClient(addr);
+
+    kv.mutable_key()->resize(1024);
+
+    auto status = kv_cli->GetBigKV(kv, val);
+    if (status.error_code() != kvstore::ErrorCode::OK) {
+        std::cerr << "Failed to connect" << std::endl;
+        exit(1);
+    }
+
+    return reinterpret_cast<jlong>(kv_cli);
 }
 
 JNIEXPORT jbyteArray JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_get
         (JNIEnv *j_env, jobject j_obj, jlong j_handle, jbyteArray j_key) {
     auto *cli = reinterpret_cast<kvstore::KVClient *>(j_handle);
     std::string val;
+    auto status = cli->Get(to_string(j_env, j_key), val);
 
-    if (cli->Get(to_string(j_env, j_key), val).error_code() == kvstore::ErrorCode::OK) {
+    if (status.error_code() == kvstore::ErrorCode::OK) {
         return to_jbyte_array(j_env, val);
+    } else {
+        std::cout << status.error_msg() << std::endl;
     }
     return nullptr;
 }
@@ -65,8 +80,8 @@ JNIEXPORT jbyteArray JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_ge
 JNIEXPORT jint JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_put
         (JNIEnv *j_env, jobject j_obj, jlong j_handle, jbyteArray j_key, jbyteArray j_value) {
     auto *cli = reinterpret_cast<kvstore::KVClient *>(j_handle);
-    auto err = cli->Put(to_string(j_env, j_key), to_string(j_env, j_value)).error_code();
-    return err == kvstore::ErrorCode::OK ? 0 : err;
+    auto status = cli->Put(to_string(j_env, j_key), to_string(j_env, j_value));
+    return status.error_code() == kvstore::ErrorCode::OK ? 0 : status.error_code();
 }
 
 JNIEXPORT jint JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_delete

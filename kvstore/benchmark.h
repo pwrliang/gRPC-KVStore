@@ -79,41 +79,22 @@ namespace kvstore {
         Status status;
         size_t size_in_byte = 0;
 
-        if (FLAGS_dry_run) {
-            for (size_t i = 0; i < batch_size; i++) {
-                KV kv;
-                auto key_size = FLAGS_key_size;
-
-                kv.mutable_key()->assign(gen_random_string(key_size));
-                kvs.push_back(kv);
-            }
-        } else {
-            status = kv_cli->GetBatch("", kvs, batch_size);
-            if (status.error_code() != ErrorCode::OK) {
-                LOG(FATAL) << "GetBatch Error: " << status.error_code() << " msg: " << status.error_msg();
-            }
+        status = kv_cli->GetBatch("", kvs, batch_size);
+        if (status.error_code() != ErrorCode::OK) {
+            LOG(FATAL) << "GetBatch Error: " << status.error_code() << " msg: " << status.error_msg();
         }
         sw.start();
         for (auto &kv: kvs) {
             std::string value;
-            size_t val_size = 0;
-            if (FLAGS_dry_run) {
-                auto max_val_size = FLAGS_val_size;
-                val_size = FLAGS_variable ? random(1, max_val_size) : max_val_size;
-            }
 
-            status = kv_cli->Get(kv.key(), value, val_size);
+            status = kv_cli->Get(kv.key(), value);
             if (status.error_code() != ErrorCode::OK) {
                 LOG(FATAL) << "Failed to get key " << kv.key() << " ErrorCode: " << status.error_code() << " msg: " <<
                            status.error_msg();
             }
-            if (FLAGS_dry_run) {
-                size_in_byte += kv.key().size() + value.size();
-            } else {
-                CHECK_EQ(kv.value(), value) << "Value does not match with the value from GetBatch: " << value << " vs "
-                                            << kv.value();
-                size_in_byte += kv.key().size() + kv.value().size();
-            }
+            CHECK_EQ(kv.value(), value) << "Value does not match with the value from GetBatch: " << value << " vs "
+                                        << kv.value();
+            size_in_byte += kv.key().size() + kv.value().size();
         }
         sw.stop();
         LOG(INFO) << kvs.size() << " kvs are found, total data size: " << (float) size_in_byte / 1024.0 / 1024.0

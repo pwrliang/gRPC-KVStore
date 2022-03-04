@@ -23,8 +23,12 @@ std::string jstring2string(JNIEnv *env, jstring jStr) {
 
 jbyteArray to_jbyte_array(JNIEnv *env, const std::string &s) {
     jsize len = s.length();
+    if (len >= 4 * 1024 * 1024) {
+        printf("Too large %d\n", len);
+        exit(1);
+    }
     jbyteArray arr = env->NewByteArray(len);
-    env->SetByteArrayRegion(arr, 0, len, reinterpret_cast<const jbyte *>(s.data()));
+    env->SetByteArrayRegion(arr, 0, len, reinterpret_cast<const jbyte *>(s.c_str()));
     return arr;
 }
 
@@ -44,20 +48,23 @@ jobject new_array_list(JNIEnv *env, jsize size) {
     return env->NewObject(array_list_clz, array_list_constructor, size);
 }
 
-
 JNIEXPORT jlong JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_connect
         (JNIEnv *j_env, jobject j_obj, jstring j_addr) {
     auto addr = jstring2string(j_env, j_addr);
-    kvstore::BigGetReq kv;
+
     std::string val;
     auto kv_cli = new kvstore::KVClient(addr);
 
-    kv.mutable_key()->resize(1024);
+    for (int i = 0; i < 100; i++) {
+        kvstore::BigGetReq kv;
+        kv.mutable_key()->resize(1024);
+        kv.set_val_size(4096);
 
-    auto status = kv_cli->GetBigKV(kv, val);
-    if (status.error_code() != kvstore::ErrorCode::OK) {
-        std::cerr << "Failed to connect" << std::endl;
-        exit(1);
+        auto status = kv_cli->GetBigKV(kv, val);
+        if (status.error_code() != kvstore::ErrorCode::OK) {
+            std::cerr << "Failed to connect" << std::endl;
+            exit(1);
+        }
     }
 
     return reinterpret_cast<jlong>(kv_cli);

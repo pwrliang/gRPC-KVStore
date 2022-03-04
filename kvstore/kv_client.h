@@ -43,6 +43,7 @@ namespace kvstore {
             GetResp resp;
             grpc::ClientContext cli_ctx;
 
+            CHECK(key.size() <= 4 * 1024 * 1024);
             cli_ctx.set_wait_for_ready(true);
             req.set_key(key);
             auto grpc_status = stub_->Get(&cli_ctx, req, &resp);
@@ -55,6 +56,7 @@ namespace kvstore {
                 resp.mutable_status()->set_error_code(ErrorCode::CLIENT_ERROR);
                 resp.mutable_status()->set_error_msg(grpc_status.error_message());
             }
+
             return resp.status();
         }
 
@@ -101,6 +103,7 @@ namespace kvstore {
             DeleteResp resp;
             grpc::ClientContext cli_ctx;
 
+            CHECK(key.size() <= 4 * 1024 * 1024);
             req.set_key(key);
             auto grpc_status = stub_->Delete(&cli_ctx, req, &resp);
 

@@ -105,7 +105,7 @@ endif ()
 
 if(JNI_FOUND)
     add_library(grpcrocksdbjni SHARED jni/grpcrocksdbjni.cc)
-    target_include_directories(grpcrocksdbjni PRIVATE kvstore jni)
+    target_include_directories(grpcrocksdbjni PRIVATE kvstore jni ${MPI_CXX_INCLUDE_PATH})
     target_link_libraries(grpcrocksdbjni ${GLOG_LIBRARIES}
             kv_grpc_proto
             ${_REFLECTION}

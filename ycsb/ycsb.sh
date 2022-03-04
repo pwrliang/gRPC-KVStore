@@ -7,6 +7,8 @@ SERVER=$(head -n 1 "$HOSTS_PATH")
 FIRST_CLIENT=$(head -n 2 "$HOSTS_PATH" | tail -n 1 | cut -d" " -f1,1)
 NP=$(awk '{ sum += $1 } END { print sum }' <(tail -n +2 ycsb/hosts |cut -d"=" -f2,2))
 LOG_PATH=$(realpath "$SCRIPT_DIR/logs_$NP")
+MPI_LIB=$(realpath "$(which mpirun|xargs dirname)"/../lib)
+
 if [[ -n "$LOG_SUFFIX" ]]; then
   LOG_PATH="${LOG_PATH}_${LOG_SUFFIX}"
 fi
@@ -45,7 +47,8 @@ function start_server() {
 }
 
 function kill_server() {
-  ssh "$SERVER" 'pkill kv_store && while $(pkill -0 kv_store 2>/dev/null); do continue; done'
+  ssh "$SERVER" 'if ps aux | pgrep kv_store >/dev/null; then pkill kv_store && while $(pkill -0 kv_store 2>/dev/null); do continue; done; fi'
+#  ssh "$SERVER" 'ps aux|pgrep kv_store|xargs kill -9 || true'
 }
 
 function load() {
@@ -56,7 +59,7 @@ function load() {
       echo "Loading $workload"
       mpirun -x GRPC_PLATFORM_TYPE -x RDMA_VERBOSITY -n 1 -wdir "$YCSB_HOME" -host "$FIRST_CLIENT" \
           python2 "$YCSB_HOME"/bin/ycsb load grpcrocksdb \
-            -jvm-args="-Djava.library.path=${KVSTORE_HOME}" \
+            -jvm-args="-Djava.library.path=${KVSTORE_HOME}:${MPI_LIB}" \
             -P "$YCSB_HOME/workloads/$workload" \
             -P "$PROFILE_PATH" \
             -s -p grpc.addr="$SERVER:12345"
@@ -70,23 +73,23 @@ function load() {
 for workload in ${WORKLOADS}; do
   db_file="${DB_PREFIX}/${workload}"
   curr_log_path="$LOG_PATH/${workload}.log"
-
-  if [[ $CMD == "load" ]]; then
-    # remove database
-    echo "Remove $db_file on $SERVER"
-    ssh "$SERVER" rm -rf "$db_file"
-
-    load "$workload"
-  elif [[ $CMD == "run" ]]; then
+  kill_server
+  if [[ $CMD == "run" ]]; then
     if [[ -f "$curr_log_path" ]]; then
         echo "$curr_log_path exists, skip"
       else
-        if ! ssh "$SERVER" test -d "$db_file"; then
-          echo "Database $db_file does not exist, load it"
-          load "$workload"
-        fi
-
         while true; do
+        # remove database
+          echo "Remove $db_file on $SERVER"
+          ssh "$SERVER" rm -rf "$db_file"
+
+          load "$workload"
+
+#        if ! ssh "$SERVER" test -d "$db_file"; then
+#          echo "Database $db_file does not exist, load it"
+#          load "$workload"
+#        fi
+
           start_server "$workload"
 
           tail -n +2 "$HOSTS_PATH" > /tmp/clients
@@ -95,13 +98,13 @@ for workload in ${WORKLOADS}; do
           mpirun -x GRPC_PLATFORM_TYPE -x RDMA_VERBOSITY \
               -wdir "$YCSB_HOME" -np "$NP" -hostfile /tmp/clients \
               python2 "$YCSB_HOME"/bin/ycsb run grpcrocksdb \
-              -jvm-args="-Djava.library.path=${KVSTORE_HOME}" \
+              -jvm-args="-Djava.library.path=${KVSTORE_HOME}:${MPI_LIB}" \
               -P "$YCSB_HOME/workloads/$workload" \
               -P "$PROFILE_PATH" \
-              -s -p grpc.addr="$SERVER:12345" | tee -a "${curr_log_path}.tmp" 2>&1
+              -s -p grpc.addr="$SERVER:12345" | tee "${curr_log_path}.tmp" 2>&1
           kill_server
 
-          if grep -q "FAILED" < "${curr_log_path}.tmp"; then
+          if grep -q -e "FAILED" -e "A fatal error" < "${curr_log_path}.tmp"; then
             echo "Found error when evaluate workload $workload, retrying"
           else
             mv "${curr_log_path}.tmp" "${curr_log_path}"

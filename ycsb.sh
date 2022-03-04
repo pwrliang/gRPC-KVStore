@@ -21,5 +21,4 @@ else
   export KVSTORE_HOME=/home/geng.161/Projects/gRPC-KVStore/build_rdma
   echo "RDMA"
 fi
-#./ycsb/ycsb.sh load "$(realpath ycsb/workload.dat)"
 ./ycsb/ycsb.sh run "$(realpath ycsb/workload.dat)"

@@ -61,8 +61,8 @@ namespace kvstore {
         }
 
         ::grpc::Status
-        GetBigKV(::grpc::ServerContext *context, const ::kvstore::BigGetReq *request,
-                 ::kvstore::BigGetResp *response) override {
+        ArbitraryGet(::grpc::ServerContext *context, const ::kvstore::ArbitraryGetReq *request,
+                     ::kvstore::ArbitraryGetResp *response) override {
             response->mutable_value()->resize(request->val_size());
             return wrapStatus(rocksdb::Status::OK(), response->mutable_status());
         }
@@ -82,7 +82,7 @@ namespace kvstore {
     };
 
     enum class CallStatus {
-        CREATE, PROCESS, FINISH
+        CREATE, PROCESS, WRITING, FINISH
     };
 
     class Call {
@@ -141,6 +141,34 @@ namespace kvstore {
         GetReq req_;
         GetResp resp_;
         grpc::ServerAsyncResponseWriter<GetResp> responder_;
+    };
+
+    class ArbitraryGetCall : public Call {
+    public:
+        ArbitraryGetCall(KVStore::AsyncService *service,
+                         grpc::ServerCompletionQueue *cq,
+                         rocksdb::DB *db) :
+                Call(service, cq, db), responder_(&ctx_) {
+            call_status_ = CallStatus::PROCESS;
+            service_->RequestArbitraryGet(&ctx_, &req_, &responder_, cq_, cq_, this);
+        }
+
+        void Proceed() override {
+            if (call_status_ == CallStatus::PROCESS) {
+                new ArbitraryGetCall(service_, cq_, db_);
+                resp_.mutable_value()->resize(req_.val_size());
+                call_status_ = CallStatus::FINISH;
+                responder_.Finish(resp_, wrapStatus(rocksdb::Status::OK(), resp_.mutable_status()), this);
+            } else {
+                GPR_ASSERT(call_status_ == CallStatus::FINISH);
+                delete this;
+            }
+        }
+
+    private:
+        ArbitraryGetReq req_;
+        ArbitraryGetResp resp_;
+        grpc::ServerAsyncResponseWriter<ArbitraryGetResp> responder_;
     };
 
     class PutCall : public Call {
@@ -213,29 +241,44 @@ namespace kvstore {
         void Proceed() override {
             if (call_status_ == CallStatus::PROCESS) {
                 new ScanCall(service_, cq_, db_);
-
-                size_t batch_size = req_.has_limit() ? req_.limit() : std::numeric_limits<size_t>::max();
-                auto *it = db_->NewIterator(rocksdb::ReadOptions());
-
-                for (req_.has_start() ? it->Seek(req_.start()) : it->SeekToFirst();
-                     it->Valid() && batch_size > 0; it->Next(), batch_size--) {
-                    ScanResp resp;
-                    resp.mutable_kv()->mutable_key()->assign(it->key().data(), it->key().size());
-                    resp.mutable_kv()->mutable_value()->assign(it->value().data(), it->value().size());
-                    writer_.Write(resp_, this);
+                rest_size_ = req_.has_limit() ? req_.limit() : std::numeric_limits<size_t>::max();
+                it_ = db_->NewIterator(rocksdb::ReadOptions());
+                if (req_.has_start()) {
+                    it_->Seek(req_.start());
+                } else {
+                    it_->SeekToFirst();
                 }
-                CHECK(it->status().ok()) << it->status().ToString();
-                delete it;
-            } else {
-                GPR_ASSERT(call_status_ == CallStatus::FINISH);
+                call_status_ = CallStatus::WRITING;
+                write();
+            } else if (call_status_ == CallStatus::WRITING) {
+                write();
+            } else if (call_status_ == CallStatus::FINISH) {
+                delete it_;
+
                 delete this;
             }
         }
 
     private:
         ScanReq req_;
-        ScanResp resp_;
         grpc::ServerAsyncWriter<ScanResp> writer_;
+        size_t rest_size_{};
+        rocksdb::Iterator *it_{};
+
+        void write() {
+            if (it_->Valid() && rest_size_ > 0) {
+                ScanResp resp;
+                CHECK(it_->status().ok()) << it_->status().ToString();
+                resp.mutable_kv()->mutable_key()->assign(it_->key().data(), it_->key().size());
+                resp.mutable_kv()->mutable_value()->assign(it_->value().data(), it_->value().size());
+                writer_.Write(resp, this);
+                it_->Next();
+                rest_size_--;
+            } else {
+                call_status_ = CallStatus::FINISH;
+                writer_.Finish(grpc::Status::OK, this);
+            }
+        }
     };
 
     class KVServer {
@@ -244,9 +287,7 @@ namespace kvstore {
             db_ = createAndOpenDB(db_file.c_str());
         }
 
-        virtual ~KVServer() {
-
-        }
+        virtual ~KVServer() = default;
 
         virtual void Start() = 0;
 
@@ -312,9 +353,11 @@ namespace kvstore {
 
     class KVServerAsync : public KVServer {
     public:
-        KVServerAsync(const std::string &db_file, std::string addr) :
+        KVServerAsync(const std::string &db_file, std::string addr,
+                      int num_thread) :
                 KVServer(db_file),
-                addr_(std::move(addr)) {
+                addr_(std::move(addr)),
+                num_thread_(num_thread) {
 
         }
 
@@ -324,36 +367,52 @@ namespace kvstore {
             grpc::ServerBuilder builder;
             builder.AddListeningPort(addr_, grpc::InsecureServerCredentials());
             builder.RegisterService(&service_);
-            cq_ = builder.AddCompletionQueue();
+            for (int i = 0; i < num_thread_; i++) {
+                cqs_.emplace_back(builder.AddCompletionQueue());
+            }
+            LOG(INFO) << "Async Server is listening on " << addr_ << " Serving thread: " << num_thread_;
             server_ = builder.BuildAndStart();
-            LOG(INFO) << "Async Server is listening on " << addr_;
-            HandleRpcs();
+            auto *db = get_db();
+            std::vector<std::thread> ths;
+
+            for (int i = 0; i < num_thread_; i++) {
+                auto *cq = cqs_[i].get();
+                new GetCall(&service_, cq, db);
+                new PutCall(&service_, cq, db);
+                new DeleteCall(&service_, cq, db);
+                new ScanCall(&service_, cq, db);
+                new ArbitraryGetCall(&service_, cq, db);
+
+                ths.emplace_back([cq](int tid) {
+                    void *tag;
+                    bool ok;
+                    while (cq->Next(&tag, &ok)) {
+                        if (ok) {
+                            static_cast<Call *>(tag)->Proceed();
+                        }
+                    }
+                }, i);
+            }
+            for (auto &th: ths) {
+                th.join();
+            }
         }
 
         void Stop() override {
             server_->Shutdown();
+            for (auto &cq: cqs_) {
+                cq->Shutdown();
+            }
+
             KVServer::Stop();
         }
 
     private:
         std::string addr_;
         KVStore::AsyncService service_;
-        std::unique_ptr<grpc::ServerCompletionQueue> cq_;
+        std::vector<std::unique_ptr<grpc::ServerCompletionQueue>> cqs_;
         std::unique_ptr<grpc::Server> server_;
-
-
-        void HandleRpcs() {
-            auto *db = get_db();
-
-            new GetCall(&service_, cq_.get(), db);
-            void *tag;
-            bool ok;
-            while (true) {
-                GPR_ASSERT(cq_->Next(&tag, &ok));
-                GPR_ASSERT(ok);
-                static_cast<Call *>(tag)->Proceed();
-            }
-        }
+        int num_thread_;
     };
 }
 #endif //GRPC_KVSTORE_KV_SERVER_H

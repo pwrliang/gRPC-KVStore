@@ -56,11 +56,11 @@ JNIEXPORT jlong JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_connect
     auto kv_cli = new kvstore::KVClient(addr);
 
     for (int i = 0; i < 100; i++) {
-        kvstore::BigGetReq kv;
-        kv.mutable_key()->resize(1024);
-        kv.set_val_size(4096);
+        kvstore::ArbitraryGetReq req;
+        req.mutable_key()->resize(1024);
+        req.set_val_size(4096);
 
-        auto status = kv_cli->GetBigKV(kv, val);
+        auto status = kv_cli->ArbitraryGet(req, val);
         if (status.error_code() != kvstore::ErrorCode::OK) {
             std::cerr << "Failed to connect" << std::endl;
             exit(1);

@@ -8,6 +8,7 @@ DECLARE_string(addr);
 DECLARE_int32(port);
 DECLARE_bool(server);
 DECLARE_bool(async);
+DECLARE_int32(thread);
 DECLARE_int32(repeat);
 DECLARE_uint32(key_size);
 DECLARE_uint32(val_size);

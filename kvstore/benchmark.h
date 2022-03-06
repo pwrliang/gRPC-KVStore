@@ -22,32 +22,6 @@ namespace kvstore {
         return tmp_s;
     }
 
-    void Warmup(const std::shared_ptr<KVClient> &kv_cli,
-                size_t key_size, size_t max_val_size,
-                bool variable_value_size) {
-        size_t batch_size = 10000;
-        std::vector<std::pair<std::string, std::string>> reqs;
-        size_t size_in_byte = 0;
-        reqs.reserve(batch_size);
-
-        for (size_t i = 0; i < batch_size; i++) {
-            std::string key = gen_random_string(key_size), value;
-            auto val_size = variable_value_size ? random(1, max_val_size) : max_val_size;
-
-            value.resize(val_size);
-            reqs.emplace_back(std::make_pair(key, value));
-            size_in_byte += key_size + val_size;
-        }
-
-        for (size_t i = 0; i < batch_size; i++) {
-            auto &req = reqs[i];
-            auto status = kv_cli->Put(req.first, req.second);
-            if (status.error_code() != ErrorCode::OK) {
-                LOG(FATAL) << "Put Error: " << status.error_code() << " msg: " << status.error_msg();
-            }
-        }
-    }
-
     void TestScan(const std::shared_ptr<KVClient> &kv_cli,
                   size_t batch_size) {
         Stopwatch sw;
@@ -162,35 +136,35 @@ namespace kvstore {
         LOG(INFO) << "Time: " << sw.ms() << " ms, avg: " << kvs.size() / (sw.ms() / 1000) << " kv/s";
     }
 
-    void TestBigKV(const std::shared_ptr<KVClient> &kv_cli,
+    void Warmup(const std::shared_ptr<KVClient> &kv_cli,
                    size_t size_in_byte,
                    bool big_req,
                    bool big_resp) {
         Stopwatch sw;
-        BigGetReq kv;
+        ArbitraryGetReq req;
         std::string val;
 
         size_in_byte = random(1, size_in_byte);
 
         if (big_req) {
-            kv.mutable_key()->resize(size_in_byte);
+            req.mutable_key()->resize(size_in_byte);
         } else {
-            kv.mutable_key()->resize(1);
+            req.mutable_key()->resize(1);
         }
         if (big_resp) {
-            kv.set_val_size(size_in_byte);
+            req.set_val_size(size_in_byte);
         } else {
-            kv.set_val_size(0);
+            req.set_val_size(0);
         }
 
         sw.start();
-        auto status = kv_cli->GetBigKV(kv, val);
+        auto status = kv_cli->ArbitraryGet(req, val);
         if (status.error_code() != ErrorCode::OK) {
-            LOG(FATAL) << "Failed to get key " << kv.key() << " ErrorCode: " << status.error_code() << " msg: " <<
+            LOG(FATAL) << "Failed to get key " << req.key() << " ErrorCode: " << status.error_code() << " msg: " <<
                        status.error_msg();
         }
         sw.stop();
-        size_in_byte = kv.key().size() + val.size();
+        size_in_byte = req.key().size() + val.size();
         LOG(INFO) << "Time: " << sw.ms() << " ms, Size: " << size_in_byte << " Bandwidth: "
                   << (float) size_in_byte / 1024 / 1024 / (sw.ms() / 1000) << " MB/s";
     }

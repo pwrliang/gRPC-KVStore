@@ -60,12 +60,12 @@ namespace kvstore {
             return resp.status();
         }
 
-        Status GetBigKV(const BigGetReq &req, std::string &value) {
-            BigGetResp resp;
+        Status ArbitraryGet(const ArbitraryGetReq &req, std::string &value) {
+            ArbitraryGetResp resp;
             grpc::ClientContext cli_ctx;
 
             cli_ctx.set_wait_for_ready(true);
-            auto grpc_status = stub_->GetBigKV(&cli_ctx, req, &resp);
+            auto grpc_status = stub_->ArbitraryGet(&cli_ctx, req, &resp);
 
             if (grpc_status.ok()) {
                 if (resp.status().error_code() == ErrorCode::OK) {
@@ -90,7 +90,6 @@ namespace kvstore {
 
             cli_ctx.set_wait_for_ready(true);
             auto grpc_status = stub_->Put(&cli_ctx, req, &resp);
-
             if (!grpc_status.ok()) {
                 resp.mutable_status()->set_error_code(ErrorCode::CLIENT_ERROR);
                 resp.mutable_status()->set_error_msg(grpc_status.error_message());

@@ -7,7 +7,7 @@ SERVER=$(head -n 1 "$HOSTS_PATH")
 FIRST_CLIENT=$(head -n 2 "$HOSTS_PATH" | tail -n 1 | cut -d" " -f1,1)
 NP=$(awk '{ sum += $1 } END { print sum }' <(tail -n +2 "$HOSTS_PATH" |cut -d"=" -f2,2))
 MPI_LIB=$(realpath "$(which mpirun|xargs dirname)"/../lib)
-ASNYC=false
+ASYNC=false
 
 if [[ -z "$WORKLOADS" ]]; then
   WORKLOADS="workloada workloadb workloadc workloadd workloade workloadf tsworkloada"
@@ -34,7 +34,7 @@ for i in "$@"; do
       shift
       ;;
     --async)
-      ASNYC=true
+      ASYNC=true
       shift
       ;;
     -*|--*)
@@ -72,7 +72,7 @@ function start_server() {
   # Launch server
   mpirun -x GRPC_PLATFORM_TYPE -x RDMA_VERBOSITY \
          -n 1 -host "$SERVER" \
-         "$KVSTORE_HOME"/kv_store -server -async=$ASNYC -db_file="$db_file" &
+         "$KVSTORE_HOME"/kv_store -server -async=$ASYNC -db_file="$db_file" &
 }
 
 function kill_server() {
@@ -118,7 +118,6 @@ for workload in ${WORKLOADS}; do
 #          echo "Database $db_file does not exist, load it"
 #          load "$workload"
 #        fi
-          exit 0
           start_server "$workload"
 
           tail -n +2 "$HOSTS_PATH" > /tmp/clients

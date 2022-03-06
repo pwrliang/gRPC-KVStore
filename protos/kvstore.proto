@@ -7,7 +7,7 @@ service KVStore {
   rpc Scan(ScanReq) returns (stream ScanResp) {}
   rpc Put(PutReq) returns (PutResp) {}
   rpc Delete(DeleteReq) returns (DeleteResp) {}
-  rpc GetBigKV(BigGetReq) returns (BigGetResp) {}
+  rpc ArbitraryGet(ArbitraryGetReq) returns (ArbitraryGetResp) {}
 }
 
 enum ErrorCode {
@@ -60,12 +60,12 @@ message DeleteResp {
   Status status = 2;
 }
 
-message BigGetReq {
+message ArbitraryGetReq {
   bytes key = 1;
   uint32 val_size = 2;
 }
 
-message BigGetResp {
+message ArbitraryGetResp {
   bytes value = 1;
   Status status = 2;
 }

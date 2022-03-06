@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
     auto addr = FLAGS_addr + ":" + std::to_string(FLAGS_port);
     if (FLAGS_server) {
         if (FLAGS_async) {
-            server = std::make_unique<kvstore::KVServerAsync>(FLAGS_db_file, addr);
+            server = std::make_unique<kvstore::KVServerAsync>(FLAGS_db_file, addr, FLAGS_thread);
         } else {
             server = std::make_unique<kvstore::KVServerSync>(FLAGS_db_file, addr);
         }
@@ -64,8 +64,8 @@ int main(int argc, char *argv[]) {
                 kvstore::TestGet(client, batch_size);
             } else if (cmd == "delete") {
                 kvstore::TestDelete(client, batch_size);
-            } else if (cmd == "get_big") {
-                kvstore::TestBigKV(client, FLAGS_big_kv_in_kb * 1024, FLAGS_big_k, FLAGS_big_v);
+            } else if (cmd == "pingpong") {
+                kvstore::Warmup(client, FLAGS_big_kv_in_kb * 1024, FLAGS_big_k, FLAGS_big_v);
             } else {
                 LOG(FATAL) << "Bad command: " << cmd;
             }

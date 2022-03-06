@@ -21,4 +21,10 @@ else
   export KVSTORE_HOME=/home/geng.161/Projects/gRPC-KVStore/build_rdma
   echo "RDMA"
 fi
-./ycsb/ycsb.sh run "$(realpath ycsb/workload.dat)"
+
+# for n_clients in 1 2 4 8 16 32 64; do
+for n_clients in 32; do
+  sed -E "s/slots=[0-9]+/slots=${n_clients}/" < ycsb/hosts > ycsb/hosts.1 && mv ycsb/hosts.1 ycsb/hosts
+  ./ycsb/ycsb.sh -c=run -p="$(realpath ycsb/workload.dat)"
+#  ./ycsb/ycsb.sh -c=run -p="$(realpath ycsb/workload.dat)" --async
+done

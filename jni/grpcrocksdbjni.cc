@@ -103,7 +103,7 @@ JNIEXPORT jobject JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_scan
     auto *cli = reinterpret_cast<kvstore::KVClient *>(j_handle);
     std::vector<kvstore::KV> kvs;
 
-    cli->GetBatch(to_string(j_env, j_key), kvs, j_limit);
+    cli->Scan(to_string(j_env, j_key), kvs, j_limit);
 
     jclass clazz = j_env->FindClass("site/ycsb/db/grpc/rocksdb/GRPCRocksDBClient$KVPairs");
     assert(clazz != nullptr);

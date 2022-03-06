@@ -16,9 +16,9 @@ namespace kvstore {
             LOG(INFO) << "Client is trying to connect to " << addr;
         }
 
-        Status GetBatch(const std::string &start, std::vector<KV> &kvs,
-                        size_t batch_size = std::numeric_limits<size_t>::max()) {
-            GetBatchReq req;
+        Status Scan(const std::string &start, std::vector<KV> &kvs,
+                    size_t batch_size = std::numeric_limits<size_t>::max()) {
+            ScanReq req;
             grpc::ClientContext cli_ctx;
 
             cli_ctx.set_wait_for_ready(true);
@@ -26,8 +26,8 @@ namespace kvstore {
                 req.set_start(start);
             }
             req.set_limit(batch_size);
-            auto reader = stub_->GetBatch(&cli_ctx, req);
-            GetBatchResp resp;
+            auto reader = stub_->Scan(&cli_ctx, req);
+            ScanResp resp;
             Status status;
 
             while (reader->Read(&resp)) {

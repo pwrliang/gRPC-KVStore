@@ -48,15 +48,15 @@ namespace kvstore {
         }
     }
 
-    void TestGetBatch(const std::shared_ptr<KVClient> &kv_cli,
-                      size_t batch_size) {
+    void TestScan(const std::shared_ptr<KVClient> &kv_cli,
+                  size_t batch_size) {
         Stopwatch sw;
         std::vector<KV> kvs;
         kvs.reserve(1000000);
         size_t size_in_byte = 0;
 
         sw.start();
-        Status status = kv_cli->GetBatch("", kvs, batch_size);
+        Status status = kv_cli->Scan("", kvs, batch_size);
         sw.stop();
 
         if (status.error_code() != ErrorCode::OK) {
@@ -79,7 +79,7 @@ namespace kvstore {
         Status status;
         size_t size_in_byte = 0;
 
-        status = kv_cli->GetBatch("", kvs, batch_size);
+        status = kv_cli->Scan("", kvs, batch_size);
         if (status.error_code() != ErrorCode::OK) {
             LOG(FATAL) << "GetBatch Error: " << status.error_code() << " msg: " << status.error_msg();
         }
@@ -140,7 +140,7 @@ namespace kvstore {
                     size_t batch_size) {
         Stopwatch sw;
         std::vector<KV> kvs;
-        Status status = kv_cli->GetBatch("", kvs, batch_size);
+        Status status = kv_cli->Scan("", kvs, batch_size);
         size_t size_in_byte = 0;
 
         if (status.error_code() != ErrorCode::OK) {

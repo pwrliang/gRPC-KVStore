@@ -36,7 +36,11 @@ int main(int argc, char *argv[]) {
 
     auto addr = FLAGS_addr + ":" + std::to_string(FLAGS_port);
     if (FLAGS_server) {
-        server = std::make_unique<kvstore::KVServer>(FLAGS_db_file, addr);
+        if (FLAGS_async) {
+            server = std::make_unique<kvstore::KVServerAsync>(FLAGS_db_file, addr);
+        } else {
+            server = std::make_unique<kvstore::KVServerSync>(FLAGS_db_file, addr);
+        }
         signal(SIGTERM, signalHandler);
         server->Start();
     } else {
@@ -54,8 +58,8 @@ int main(int argc, char *argv[]) {
 
             if (cmd == "put") {
                 kvstore::TestPut(client, FLAGS_key_size, FLAGS_val_size, batch_size, FLAGS_variable);
-            } else if (cmd == "get_batch") {
-                kvstore::TestGetBatch(client, batch_size);
+            } else if (cmd == "scan") {
+                kvstore::TestScan(client, batch_size);
             } else if (cmd == "get") {
                 kvstore::TestGet(client, batch_size);
             } else if (cmd == "delete") {

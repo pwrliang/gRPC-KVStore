@@ -245,14 +245,16 @@ namespace kvstore {
         }
 
         virtual ~KVServer() {
-            if (db_ != nullptr) {
-                closeDB(db_);
-            }
+
         }
 
         virtual void Start() = 0;
 
-        virtual void Stop() = 0;
+        virtual void Stop() {
+            if (db_ != nullptr) {
+                closeDB(db_);
+            }
+        }
 
         rocksdb::DB *get_db() {
             return db_;
@@ -299,6 +301,7 @@ namespace kvstore {
 
         void Stop() override {
             server_->Shutdown();
+            KVServer::Stop();
         }
 
     private:
@@ -329,6 +332,7 @@ namespace kvstore {
 
         void Stop() override {
             server_->Shutdown();
+            KVServer::Stop();
         }
 
     private:

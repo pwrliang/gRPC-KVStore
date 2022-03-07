@@ -22,8 +22,21 @@ else
   echo "RDMA"
 fi
 
+hostfile_template="$1"
+hostfile_template=$(realpath "$hostfile_template")
+if [[ ! -f "$hostfile_template" ]]; then
+  echo "Bad hostfile $hostfile_template"
+  exit 1
+fi
+
 for n_clients in 1 2 4 8 16 32 64; do
-  sed -E "s/slots=[0-9]+/slots=${n_clients}/" < ycsb/hosts > ycsb/hosts.1 && mv ycsb/hosts.1 ycsb/hosts
+  name_prefix=$(basename "$hostfile_template")
+  hostfile="/tmp/$name_prefix.${RANDOM}"
+  while [[ -f "$hostfile" ]]; do
+    hostfile="/tmp/$name_prefix.${RANDOM}"
+  done
+  sed -E "s/slots=[0-9]+/slots=${n_clients}/" < "$hostfile_template" > "$hostfile"
+  export HOSTS_PATH="$hostfile"
   ./ycsb/ycsb.sh -c=run -p="$(realpath ycsb/workload.dat)"
   ./ycsb/ycsb.sh -c=run -p="$(realpath ycsb/workload.dat)" --async
 done

@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -e
-SCRIPT_DIR=$(dirname "$0")
-HOSTS_PATH="$SCRIPT_DIR/hosts"
+SCRIPT_DIR=$(realpath "$(dirname "$0")")
+if [[ -z "$HOSTS_PATH" ]]; then
+  echo "Using default $HOSTS_PATH"
+  HOSTS_PATH="$SCRIPT_DIR/hosts"
+fi
 DB_PREFIX="/tmp/rocks.db"
 SERVER=$(head -n 1 "$HOSTS_PATH")
 FIRST_CLIENT=$(head -n 2 "$HOSTS_PATH" | tail -n 1 | cut -d" " -f1,1)
@@ -102,40 +105,46 @@ function load() {
 for workload in ${WORKLOADS}; do
   db_file="${DB_PREFIX}/${workload}"
   curr_log_path="$LOG_PATH/${workload}.log"
+  curr_cpu_log_path="$LOG_PATH/${workload}.cpu.log"
   kill_server
   if [[ $CMD == "run" ]]; then
     if [[ -f "$curr_log_path" ]]; then
         echo "$curr_log_path exists, skip"
       else
         while true; do
-        # remove database
+          # remove database
           echo "Remove $db_file on $SERVER"
           ssh "$SERVER" rm -rf "$db_file"
 
           load "$workload"
 
-#        if ! ssh "$SERVER" test -d "$db_file"; then
-#          echo "Database $db_file does not exist, load it"
-#          load "$workload"
-#        fi
           start_server "$workload"
+          ssh "$SERVER" "${SCRIPT_DIR}/cpu_usage_top.sh" kv_store "${curr_cpu_log_path}.tmp" &
 
-          tail -n +2 "$HOSTS_PATH" > /tmp/clients
+          tmp_host="/tmp/clients.$RANDOM"
+          if [[ -f $tmp_host ]]; then
+            tmp_host="/tmp/clients.$RANDOM"
+          fi
+          tail -n +2 "$HOSTS_PATH" > "$tmp_host"
           echo "============================= Running $workload with $NP clients"
           # Evaluate
           mpirun -x GRPC_PLATFORM_TYPE -x RDMA_VERBOSITY \
-              -wdir "$YCSB_HOME" -np "$NP" -hostfile /tmp/clients \
+              -wdir "$YCSB_HOME" -np $NP -hostfile "$tmp_host" \
               python2 "$YCSB_HOME"/bin/ycsb run grpcrocksdb \
               -jvm-args="-Djava.library.path=${KVSTORE_HOME}:${MPI_LIB}" \
               -P "$YCSB_HOME/workloads/$workload" \
               -P "$PROFILE_PATH" \
               -s -p grpc.addr="$SERVER:12345" | tee "${curr_log_path}.tmp" 2>&1
+          ssh "$SERVER" pkill top
           kill_server
 
-          if grep -q -e "FAILED" -e "A fatal error" < "${curr_log_path}.tmp"; then
+          row_count=$(grep -c "\[OVERALL\], Throughput" < "${curr_log_path}.tmp")
+
+          if [[ $row_count != "$NP" ]]; then
             echo "Found error when evaluate workload $workload, retrying"
           else
             mv "${curr_log_path}.tmp" "${curr_log_path}"
+            mv "${curr_cpu_log_path}.tmp" "${curr_cpu_log_path}"
             break
           fi
         done

@@ -365,6 +365,7 @@ namespace kvstore {
             grpc::EnableDefaultHealthCheckService(true);
             grpc::reflection::InitProtoReflectionServerBuilderPlugin();
             grpc::ServerBuilder builder;
+            builder.SetOption(grpc::MakeChannelArgumentOption(GRPC_ARG_ALLOW_REUSEPORT, 0));
             builder.AddListeningPort(addr_, grpc::InsecureServerCredentials());
             builder.RegisterService(&service_);
             for (int i = 0; i < num_thread_; i++) {

@@ -7,8 +7,7 @@ while [[ -z $PID ]]; do
   PID=$(/usr/sbin/pidof "${PNAME}")
   sleep 1
 done
-pkill top
-top -b -d 2 -p $PID | awk \
+top -b -d 1 -p $PID | awk \
     -v cpuLog="$LOG_FILE" -v pid="$PID" -v pname="$PNAME" '
     /^top -/{time = $3}
     $1+0>0 {printf "%s %s :: %s[%s] CPU Usage: %d%%\n", \

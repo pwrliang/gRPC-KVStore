@@ -11,6 +11,7 @@ FIRST_CLIENT=$(head -n 2 "$HOSTS_PATH" | tail -n 1 | cut -d" " -f1,1)
 NP=$(awk '{ sum += $1 } END { print sum }' <(tail -n +2 "$HOSTS_PATH" |cut -d"=" -f2,2))
 MPI_LIB=$(realpath "$(which mpirun|xargs dirname)"/../lib)
 ASYNC=false
+THREAD=$(nproc)
 
 if [[ -z "$WORKLOADS" ]]; then
   WORKLOADS="workloada workloadb workloadc workloadd workloade workloadf tsworkloada"
@@ -40,6 +41,10 @@ for i in "$@"; do
       ASYNC=true
       shift
       ;;
+    -t=*|--thread=*)
+      THREAD="${i#*=}"
+      shift
+      ;;
     -*|--*)
       echo "Unknown option $i"
       exit 1
@@ -56,7 +61,7 @@ else
   exit 1
 fi
 
-LOG_PATH=$(realpath "$SCRIPT_DIR/logs_$NP")
+LOG_PATH=$(realpath "$SCRIPT_DIR/logs/logs_$NP")
 if [[ $ASYNC == true ]]; then
   LOG_PATH="${LOG_PATH}_async"
 else
@@ -73,9 +78,9 @@ function start_server() {
   workload=$1
   db_file="${DB_PREFIX}/${workload}"
   # Launch server
-  mpirun -x GRPC_PLATFORM_TYPE -x RDMA_VERBOSITY \
+  mpirun --bind-to none -x GRPC_PLATFORM_TYPE -x RDMA_VERBOSITY \
          -n 1 -host "$SERVER" \
-         "$KVSTORE_HOME"/kv_store -server -async=$ASYNC -db_file="$db_file" &
+         "$KVSTORE_HOME"/kv_store -server -async=$ASYNC -db_file="$db_file" -thread="$THREAD" &
 }
 
 function kill_server() {
@@ -89,7 +94,7 @@ function load() {
     if ssh "$SERVER" mkdir -p "$db_file"; then
       start_server "$workload"
       echo "Loading $workload"
-      mpirun -x GRPC_PLATFORM_TYPE -x RDMA_VERBOSITY -n 1 -wdir "$YCSB_HOME" -host "$FIRST_CLIENT" \
+      mpirun --bind-to none -x GRPC_PLATFORM_TYPE -x RDMA_VERBOSITY -n 1 -wdir "$YCSB_HOME" -host "$FIRST_CLIENT" \
           python2 "$YCSB_HOME"/bin/ycsb load grpcrocksdb \
             -jvm-args="-Djava.library.path=${KVSTORE_HOME}:${MPI_LIB}" \
             -P "$YCSB_HOME/workloads/$workload" \
@@ -117,7 +122,6 @@ for workload in ${WORKLOADS}; do
           ssh "$SERVER" rm -rf "$db_file"
 
           load "$workload"
-
           start_server "$workload"
           ssh "$SERVER" "${SCRIPT_DIR}/cpu_usage_top.sh" kv_store "${curr_cpu_log_path}.tmp" &
 
@@ -128,14 +132,14 @@ for workload in ${WORKLOADS}; do
           tail -n +2 "$HOSTS_PATH" > "$tmp_host"
           echo "============================= Running $workload with $NP clients"
           # Evaluate
-          mpirun -x GRPC_PLATFORM_TYPE -x RDMA_VERBOSITY \
+          mpirun --bind-to none -x GRPC_PLATFORM_TYPE -x RDMA_VERBOSITY \
               -wdir "$YCSB_HOME" -np $NP -hostfile "$tmp_host" \
               python2 "$YCSB_HOME"/bin/ycsb run grpcrocksdb \
               -jvm-args="-Djava.library.path=${KVSTORE_HOME}:${MPI_LIB}" \
               -P "$YCSB_HOME/workloads/$workload" \
               -P "$PROFILE_PATH" \
               -s -p grpc.addr="$SERVER:12345" | tee "${curr_log_path}.tmp" 2>&1
-          ssh "$SERVER" pkill top
+          ssh "$SERVER" pkill -U "$USER" top || true
           kill_server
 
           row_count=$(grep -c "\[OVERALL\], Throughput" < "${curr_log_path}.tmp")

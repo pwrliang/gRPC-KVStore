@@ -51,7 +51,6 @@ jobject new_array_list(JNIEnv *env, jsize size) {
 JNIEXPORT jlong JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_connect
         (JNIEnv *j_env, jobject j_obj, jstring j_addr) {
     auto addr = jstring2string(j_env, j_addr);
-
     std::string val;
     auto kv_cli = new kvstore::KVClient(addr);
 

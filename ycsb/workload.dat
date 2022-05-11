@@ -1,4 +1,3 @@
 recordcount=20000
 operationcount=50000
 threadcount=1
-grpc.extra.client=1

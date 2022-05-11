@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+#set -e
 SCRIPT_DIR=$(realpath "$(dirname "$0")")
 if [[ -z "$HOSTS_PATH" ]]; then
   echo "Using default $HOSTS_PATH"
@@ -67,6 +67,10 @@ if [[ $ASYNC == true ]]; then
 else
   LOG_PATH="${LOG_PATH}_sync"
 fi
+if grep -q "worker.proportion=" < "$PROFILE_PATH"; then
+  proportion=$(grep "worker.proportion=" < "$PROFILE_PATH" | cut -d"=" -f2,2)
+  LOG_PATH="${LOG_PATH}_${proportion}"
+fi
 
 if [[ -n "$LOG_SUFFIX" ]]; then
   LOG_PATH="${LOG_PATH}_${LOG_SUFFIX}"
@@ -133,6 +137,7 @@ for workload in ${WORKLOADS}; do
           echo "============================= Running $workload with $NP clients"
           # Evaluate
           mpirun --bind-to none -x GRPC_PLATFORM_TYPE -x RDMA_VERBOSITY \
+              -mca btl_tcp_if_include ib0 \
               -wdir "$YCSB_HOME" -np $NP -hostfile "$tmp_host" \
               python2 "$YCSB_HOME"/bin/ycsb run grpcrocksdb \
               -jvm-args="-Djava.library.path=${KVSTORE_HOME}:${MPI_LIB}" \

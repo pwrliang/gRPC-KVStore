@@ -14,6 +14,7 @@ void signalHandler(int signum) {
         if (server != nullptr) {
             LOG(INFO) << "Closing server";
             server->Stop();
+            exit(0);
         }
     });
     th.join();

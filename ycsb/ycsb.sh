@@ -5,7 +5,7 @@ if [[ -z "$HOSTS_PATH" ]]; then
   HOSTS_PATH="$SCRIPT_DIR/hosts"
   echo "Using default $HOSTS_PATH"
 fi
-DB_PREFIX="/tmp/rocks.db"
+DB_PREFIX="/dev/shm/rocks.db"
 SERVER=$(head -n 1 "$HOSTS_PATH")
 FIRST_CLIENT=$(head -n 2 "$HOSTS_PATH" | tail -n 1 | cut -d" " -f1,1)
 NP=$(awk '{ sum += $1 } END { print sum }' <(tail -n +2 "$HOSTS_PATH" | cut -d"=" -f2,2))

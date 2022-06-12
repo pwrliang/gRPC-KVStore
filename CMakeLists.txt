@@ -80,12 +80,12 @@ add_custom_command(
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 # kv_grpc_proto
-add_library(kv_grpc_proto SHARED
+add_library(kv_grpc_proto STATIC
         ${kv_grpc_srcs}
         ${kv_grpc_hdrs}
         ${kv_proto_srcs}
         ${kv_proto_hdrs})
-
+set_property(TARGET kv_grpc_proto PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(kv_grpc_proto
         ${_REFLECTION}
         ${_GRPC_GRPCPP}

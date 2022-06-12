@@ -154,7 +154,7 @@ for workload in ${WORKLOADS}; do
         tail -n +2 "$HOSTS_PATH" >"$tmp_host"
         echo "============================= Running $workload with $NP clients, mode: $GRPC_PLATFORM_TYPE"
         # Evaluate
-        mpirun --bind-to none -x GRPC_PLATFORM_TYPE -x RDMA_VERBOSITY \
+        mpirun --bind-to none -x GRPC_PLATFORM_TYPE \
           -mca btl_tcp_if_include ib0 \
           -wdir "$YCSB_HOME" -np "$NP" -hostfile "$tmp_host" \
           python2 "$YCSB_HOME"/bin/ycsb run grpcrocksdb \

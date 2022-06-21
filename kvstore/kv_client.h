@@ -60,22 +60,13 @@ namespace kvstore {
             return resp.status();
         }
 
-        Status ArbitraryGet(const ArbitraryGetReq &req, std::string &value) {
-            ArbitraryGetResp resp;
+        void Warmup(const WarmupReq &req) {
+            WarmupResp resp;
             grpc::ClientContext cli_ctx;
 
             cli_ctx.set_wait_for_ready(true);
-            auto grpc_status = stub_->ArbitraryGet(&cli_ctx, req, &resp);
-
-            if (grpc_status.ok()) {
-                if (resp.status().error_code() == ErrorCode::OK) {
-                    value = resp.value();
-                }
-            } else {
-                resp.mutable_status()->set_error_code(ErrorCode::CLIENT_ERROR);
-                resp.mutable_status()->set_error_msg(grpc_status.error_message());
-            }
-            return resp.status();
+            auto grpc_status = stub_->Warmup(&cli_ctx, req, &resp);
+            CHECK(grpc_status.ok());
         }
 
         Status Put(const std::string &key, const std::string &value) {

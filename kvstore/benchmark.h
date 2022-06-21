@@ -137,36 +137,35 @@ namespace kvstore {
     }
 
     void Warmup(const std::shared_ptr<KVClient> &kv_cli,
-                   size_t size_in_byte,
-                   bool big_req,
-                   bool big_resp) {
+                size_t size_in_byte,
+                bool big_req,
+                bool big_resp) {
         Stopwatch sw;
-        ArbitraryGetReq req;
+        WarmupReq req;
         std::string val;
 
         size_in_byte = random(1, size_in_byte);
+        size_t total_bytes = 0;
 
         if (big_req) {
-            req.mutable_key()->resize(size_in_byte);
+            req.mutable_data()->resize(size_in_byte);
+            total_bytes += size_in_byte;
         } else {
-            req.mutable_key()->resize(1);
+            req.mutable_data()->resize(1);
+            total_bytes += 1;
         }
         if (big_resp) {
-            req.set_val_size(size_in_byte);
+            req.set_resp_size(size_in_byte);
+            total_bytes += size_in_byte;
         } else {
-            req.set_val_size(0);
+            req.set_resp_size(0);
         }
 
         sw.start();
-        auto status = kv_cli->ArbitraryGet(req, val);
-        if (status.error_code() != ErrorCode::OK) {
-            LOG(FATAL) << "Failed to get key " << req.key() << " ErrorCode: " << status.error_code() << " msg: " <<
-                       status.error_msg();
-        }
+        kv_cli->Warmup(req);
         sw.stop();
-        size_in_byte = req.key().size() + val.size();
-        LOG(INFO) << "Time: " << sw.ms() << " ms, Size: " << size_in_byte << " Bandwidth: "
-                  << (float) size_in_byte / 1024 / 1024 / (sw.ms() / 1000) << " MB/s";
+        LOG(INFO) << "Time: " << sw.ms() << " ms, Size: " << total_bytes << " Bandwidth: "
+                  << (float) total_bytes / 1024 / 1024 / (sw.ms() / 1000) << " MB/s";
     }
 }
 

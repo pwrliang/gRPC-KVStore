@@ -12,6 +12,7 @@ NP=$(awk '{ sum += $1 } END { print sum }' <(tail -n +2 "$HOSTS_PATH" | cut -d"=
 MPI_LIB=$(realpath "$(which mpirun | xargs dirname)"/../lib)
 ASYNC=false
 THREAD=$(nproc)
+OVERWRITE=false
 
 if [[ -z "$WORKLOADS" ]]; then
   WORKLOADS="workloada workloadb workloadc workloadd workloade workloadf"
@@ -39,6 +40,10 @@ for i in "$@"; do
     ;;
   --async)
     ASYNC=true
+    shift
+    ;;
+  --overwrite)
+    OVERWRITE=true
     shift
     ;;
   -t=* | --thread=*)
@@ -137,7 +142,9 @@ for workload in ${WORKLOADS}; do
   elif [[ $CMD == "run" ]]; then
     LOG_DIR=$(get_logs_dir)
     curr_log_path="$LOG_DIR/${workload}.log"
-
+    if [[ $OVERWRITE == true ]]; then
+      rm -f "$curr_log_path"
+    fi
     if [[ -f "$curr_log_path" ]]; then
       echo "$curr_log_path exists, skip"
     else

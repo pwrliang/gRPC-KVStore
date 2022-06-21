@@ -61,10 +61,10 @@ namespace kvstore {
         }
 
         ::grpc::Status
-        ArbitraryGet(::grpc::ServerContext *context, const ::kvstore::ArbitraryGetReq *request,
-                     ::kvstore::ArbitraryGetResp *response) override {
-            response->mutable_value()->resize(request->val_size());
-            return wrapStatus(rocksdb::Status::OK(), response->mutable_status());
+        Warmup(::grpc::ServerContext *context, const ::kvstore::WarmupReq *request,
+               ::kvstore::WarmupResp *response) override {
+            response->mutable_data()->resize(request->resp_size());
+            return grpc::Status::OK;
         }
 
     private:
@@ -143,22 +143,22 @@ namespace kvstore {
         grpc::ServerAsyncResponseWriter<GetResp> responder_;
     };
 
-    class ArbitraryGetCall : public Call {
+    class WarmupCall : public Call {
     public:
-        ArbitraryGetCall(KVStore::AsyncService *service,
-                         grpc::ServerCompletionQueue *cq,
-                         rocksdb::DB *db) :
+        WarmupCall(KVStore::AsyncService *service,
+                   grpc::ServerCompletionQueue *cq,
+                   rocksdb::DB *db) :
                 Call(service, cq, db), responder_(&ctx_) {
             call_status_ = CallStatus::PROCESS;
-            service_->RequestArbitraryGet(&ctx_, &req_, &responder_, cq_, cq_, this);
+            service_->RequestWarmup(&ctx_, &req_, &responder_, cq_, cq_, this);
         }
 
         void Proceed() override {
             if (call_status_ == CallStatus::PROCESS) {
-                new ArbitraryGetCall(service_, cq_, db_);
-                resp_.mutable_value()->resize(req_.val_size());
+                new WarmupCall(service_, cq_, db_);
+                resp_.mutable_data()->resize(req_.resp_size());
                 call_status_ = CallStatus::FINISH;
-                responder_.Finish(resp_, wrapStatus(rocksdb::Status::OK(), resp_.mutable_status()), this);
+                responder_.Finish(resp_, grpc::Status::OK, this);
             } else {
                 GPR_ASSERT(call_status_ == CallStatus::FINISH);
                 delete this;
@@ -166,9 +166,9 @@ namespace kvstore {
         }
 
     private:
-        ArbitraryGetReq req_;
-        ArbitraryGetResp resp_;
-        grpc::ServerAsyncResponseWriter<ArbitraryGetResp> responder_;
+        WarmupReq req_;
+        WarmupResp resp_;
+        grpc::ServerAsyncResponseWriter<WarmupResp> responder_;
     };
 
     class PutCall : public Call {
@@ -382,7 +382,7 @@ namespace kvstore {
                 new PutCall(&service_, cq, db);
                 new DeleteCall(&service_, cq, db);
                 new ScanCall(&service_, cq, db);
-                new ArbitraryGetCall(&service_, cq, db);
+                new WarmupCall(&service_, cq, db);
 
                 ths.emplace_back([cq](int tid) {
                     void *tag;

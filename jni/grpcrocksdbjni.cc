@@ -1,6 +1,7 @@
 #include "site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient.h"
 #include <string>
 #include "kv_client.h"
+#include "common.h"
 
 std::string jstring2string(JNIEnv *env, jstring jStr) {
     if (!jStr)
@@ -54,16 +55,13 @@ JNIEXPORT jlong JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_connect
     std::string val;
     auto kv_cli = new kvstore::KVClient(addr);
 
-    for (int i = 0; i < 100; i++) {
-        kvstore::ArbitraryGetReq req;
-        req.mutable_key()->resize(1024);
-        req.set_val_size(4096);
+    for (int i = 0; i < 100000; i++) {
+        kvstore::WarmupReq req;
 
-        auto status = kv_cli->ArbitraryGet(req, val);
-        if (status.error_code() != kvstore::ErrorCode::OK) {
-            std::cerr << "Failed to connect" << std::endl;
-            exit(1);
-        }
+        req.mutable_data()->resize(kvstore::random(1, 1024));
+        req.set_resp_size(kvstore::random(1, 1024));
+
+        kv_cli->Warmup(req);
     }
 
     return reinterpret_cast<jlong>(kv_cli);

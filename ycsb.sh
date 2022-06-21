@@ -16,8 +16,6 @@ function set_hostfile() {
   export HOSTS_PATH="$hostfile"
 }
 
-GRPC_MODES=(TCP RDMA_BP RDMA_BPEV RDMA_EVENT)
-
 function clean() {
   profile="$1"
   ./ycsb/ycsb.sh -c=clean -p="$(realpath ycsb/"$profile")"
@@ -32,7 +30,10 @@ function load() {
 
 function scalability() {
   profile="$1"
-  N_CLIENTS=(1 2 4 8 16 32 64 128)
+  N_CLIENTS=(64 128)
+  GRPC_MODES=(TCP RDMA_EVENT RDMA_BP RDMA_BPEV)
+  GRPC_MODES=(RDMA_BPEV)
+  export WORKLOADS="workloada workloadf"
 
   for grpc_mode in "${GRPC_MODES[@]}"; do
     export GRPC_PLATFORM_TYPE=$grpc_mode
@@ -41,21 +42,29 @@ function scalability() {
 
       thread=28
       bp_to=0
-      if [[ n_cli -le 32 ]]; then
+      if [[ n_cli -lt 32 ]]; then
         if [[ "${grpc_mode}" == "RDMA_BPEV" ]]; then
           thread=27
         else
           thread=28
         fi
         bp_to=50
-      elif [[ n_cli -le 64 ]]; then
+      elif [[ n_cli -eq 32 ]]; then
         thread=32
-      else
-        thread=64 # for 128 client
+      elif [[ n_cli -eq 64 ]]; then
+        thread=64
+        bp_to=50
+      elif [[ n_cli -eq 128 ]]; then
+        thread=128
+        bp_to=50
       fi
 
       export LOG_SUFFIX="th_${thread}"
-      ./ycsb/ycsb.sh -c=run -p="$(realpath ycsb/"$profile")" --async --thread="$thread" --bp-timeout=$bp_to
+      ./ycsb/ycsb.sh -c=run \
+        -p="$(realpath ycsb/"$profile")" \
+        --async \
+        --thread="$thread" \
+        --bp-timeout=$bp_to --overwrite
     done
   done
 }

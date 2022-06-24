@@ -55,7 +55,7 @@ JNIEXPORT jlong JNICALL Java_site_ycsb_db_grpc_rocksdb_GRPCRocksDBClient_connect
     std::string val;
     auto kv_cli = new kvstore::KVClient(addr);
 
-    for (int i = 0; i < 100000; i++) {
+    for (int i = 0; i < 10000; i++) {
         kvstore::WarmupReq req;
 
         req.mutable_data()->resize(kvstore::random(1, 1024));
